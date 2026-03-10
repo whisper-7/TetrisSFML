@@ -69,15 +69,17 @@ struct Point {
 };
 
 // ========== 4. 全局变量 ==========
-int field[M][N] = { 0 };      // 已固定的方块
-int currentShape = 4;         // 当前方块的形状
-int currentRotation = 0;      // 当前方块的旋转状态
-Point currentPos = { 3, 0 };  // 当前方块的位置
-int nextShape = 0;            // 下一个方块
-bool gameOver = false;        // 游戏结束标志
-int score = 0;                // 当前分数
-float timer = 0.0f;           // 自动下落计时器
-float delay = BASE_DELAY;     // 当前下落速度
+int field[M][N] = { 0 };        // 已固定的方块
+int currentShape = 4;           // 当前方块的形状
+int currentRotation = 0;        // 当前方块的旋转状态
+Point currentPos = { 3, 0 };    // 当前方块的位置
+int nextShape = 0;              // 下一个方块
+bool gameOver = false;          // 游戏结束标志
+int score = 0;                  // 当前分数
+int highScore = 0;            // 最高分
+float timer = 0.0f;             // 自动下落计时器
+float delay = BASE_DELAY;       // 当前下落速度
+bool paused = false;            // 暂停标志
 
 // ========== 5. 函数声明 ==========
 // 基础工具函数
@@ -93,6 +95,10 @@ void resetGame();
 // 游戏流程函数
 void handleInput(RenderWindow& window);
 void updateGame(float time);
+
+// 文件操作函数(最高分)
+void loadHighScore();
+void saveHighScore();
 
 // ========== 6. UI类 ==========
 class UI {
@@ -195,8 +201,11 @@ private:
 public:
     Text scoreLabel;
     Text scoreValue;
+    Text highScoreLabel;
+    Text highScoreValue;
     Text nextText;
     Text gameOverText;
+    Text pauseText;
 
     UI(Font& f) : font(f) {
         // 分数标签
@@ -209,6 +218,16 @@ public:
         scoreValue.setFillColor(Color::Yellow);
         scoreValue.setPosition(340, 230);
 
+        // 最高分标签
+        highScoreLabel = Text("Best", font, 20);
+        highScoreLabel.setFillColor(Color::White);
+        highScoreLabel.setPosition(340, 260);
+
+        // 最高分数值
+        highScoreValue = Text("0", font, 24);
+        highScoreValue.setFillColor(Color(255, 215, 0));  // 金色
+        highScoreValue.setPosition(340, 290);
+
         // 下一个方块标签
         nextText = Text("Next", font, 20);
         nextText.setFillColor(Color::White);
@@ -218,12 +237,23 @@ public:
         gameOverText = Text("GAME OVER", font, 40);
         gameOverText.setFillColor(Color::Red);
         gameOverText.setPosition(100, 180);
+
+        // 暂停文字
+        pauseText = Text("PAUSE", font, 40);
+        pauseText.setFillColor(Color::Yellow);
+        pauseText.setPosition(150, 180);
     }
 
     void updateScore(int newScore) {
         char scoreStr[16];
         sprintf_s(scoreStr, 16, "%d", newScore);
         scoreValue.setString(scoreStr);
+    }
+
+    void updateHighScore(int newHighScore) {
+        char scoreStr[16];
+        sprintf_s(scoreStr, 16, "%d", newHighScore);
+        highScoreValue.setString(scoreStr);
     }
 
     // 统一的渲染函数
@@ -239,6 +269,8 @@ public:
         // 绘制UI文字
         window.draw(scoreLabel);
         window.draw(scoreValue);
+        window.draw(highScoreLabel);    // 新增
+        window.draw(highScoreValue);
         window.draw(nextText);
 
         // 绘制下一个方块
@@ -247,6 +279,11 @@ public:
         // 绘制游戏结束文字
         if (gameOver) {
             window.draw(gameOverText);
+        }
+
+        // 绘制暂停文字
+        if (paused && !gameOver) {
+            window.draw(pauseText);
         }
 
         window.display();
@@ -267,6 +304,10 @@ int main() {
     // 创建UI（现在包含了所有绘制功能）
     UI ui(font);
 
+    // 加载最高分
+    loadHighScore();
+    ui.updateHighScore(highScore);
+
     // 初始化游戏
     nextShape = rand() % 7;
     spawnNewBlock();
@@ -281,12 +322,13 @@ int main() {
         handleInput(window);
 
         // 自动下落
-        if (!gameOver && timer > delay) {
+        if (!gameOver && !paused && timer > delay) {
             updateGame(time);
         }
 
         // 渲染（现在直接调用ui.render）
         ui.updateScore(score);
+        ui.updateHighScore(highScore);
         ui.render(window);
     }
 
@@ -307,8 +349,13 @@ void handleInput(RenderWindow& window) {
             resetGame();
         }
 
+        // P键暂停/继续游戏（在游戏未结束时有效）
+        if (e.type == Event::KeyPressed && e.key.code == Keyboard::P && !gameOver) {
+            paused = !paused;
+        }
+
         // 游戏未结束时处理其他按键
-        if (!gameOver && e.type == Event::KeyPressed) {
+        if (!gameOver && !paused && e.type == Event::KeyPressed) {
             Point newPos = currentPos;
 
             switch (e.key.code) {
@@ -442,6 +489,13 @@ int clearLines() {
         case 4: score += 800; break;
         }
         printf("Score: %d\n", score);
+
+        // 检查是否破纪录
+        if (score > highScore) {
+            highScore = score;
+            printf("新纪录！最高分: %d\n", highScore);
+            // 这里不立即保存，等游戏结束时保存
+        }
     }
 
     return linesCleared;
@@ -456,6 +510,7 @@ void spawnNewBlock() {
     if (!isValidMove(currentShape, currentRotation, currentPos)) {
         gameOver = true;
         printf("Game Over\n");
+        saveHighScore();
     }
 }
 
@@ -473,8 +528,36 @@ void resetGame() {
     nextShape = rand() % 7;
     score = 0;
     timer = 0;
+    paused = false;
+
+    loadHighScore();
 
     printf("游戏重新开始\n");
+}
+
+// ========== 文件操作函数 ==========
+void loadHighScore() {
+    FILE* file;
+    errno_t  err = fopen_s(&file, "highscore.dat", "rb");
+    if (err == 0 && file) {
+        fread(&highScore, sizeof(int), 1, file);
+        fclose(file);
+        printf("加载最高分: %d\n", highScore);
+    }
+    else {
+        highScore = 0;
+        printf("没有历史最高分记录\n");
+    }
+}
+
+void saveHighScore() {
+    FILE* file;
+    errno_t err = fopen_s(&file, "highscore.dat", "wb");
+    if (err == 0 && file) {
+        fwrite(&highScore, sizeof(int), 1, file);
+        fclose(file);
+        printf("保存最高分: %d\n", highScore);
+    }
 }
 
 
