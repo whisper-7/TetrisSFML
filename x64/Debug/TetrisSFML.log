@@ -1,3 +1,9 @@
 ﻿  main.cpp
-C:\Users\26565\Desktop\TetrisSFML\main.cpp(291,15): warning C4244: “参数”: 从“time_t”转换到“unsigned int”，可能丢失数据
+C:\Users\26565\Desktop\TetrisSFML\main.cpp(126,37): warning C4244: “参数”: 从“int”转换到“float”，可能丢失数据
+C:\Users\26565\Desktop\TetrisSFML\main.cpp(135,32): warning C4244: “参数”: 从“int”转换到“float”，可能丢失数据
+C:\Users\26565\Desktop\TetrisSFML\main.cpp(148,52): warning C4244: “参数”: 从“int”转换到“float”，可能丢失数据
+C:\Users\26565\Desktop\TetrisSFML\main.cpp(148,36): warning C4244: “参数”: 从“int”转换到“float”，可能丢失数据
+C:\Users\26565\Desktop\TetrisSFML\main.cpp(166,52): warning C4244: “参数”: 从“int”转换到“float”，可能丢失数据
+C:\Users\26565\Desktop\TetrisSFML\main.cpp(166,36): warning C4244: “参数”: 从“int”转换到“float”，可能丢失数据
+C:\Users\26565\Desktop\TetrisSFML\main.cpp(258,15): warning C4244: “参数”: 从“time_t”转换到“unsigned int”，可能丢失数据
   TetrisSFML.vcxproj -> C:\Users\26565\Desktop\TetrisSFML\x64\Debug\TetrisSFML.exe
