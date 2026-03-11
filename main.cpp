@@ -81,6 +81,7 @@ int highScore = 0;            // 最高分
 float timer = 0.0f;             // 自动下落计时器
 float delay = BASE_DELAY;       // 当前下落速度
 bool paused = false;            // 暂停标志
+bool gameStarted = false;     // 新增：游戏是否已经开始
 
 // ========== 5. 函数声明 ==========
 // 基础工具函数
@@ -221,6 +222,7 @@ public:
     Text nextText;
     Text gameOverText;
     Text pauseText;
+    Text startText;  // 新增：开始提示
 
     UI(Font& f) : font(f) {
         instance = this;
@@ -260,47 +262,52 @@ public:
         pauseText.setFillColor(Color::Yellow);
         pauseText.setPosition(150, 180);
 
+        // 开始提示文字
+        startText = Text("Press ANY KEY to Start", font, 30);
+        startText.setFillColor(Color::White);
+        startText.setPosition(80, 200);
+
         // 加载背景音乐
-        if (!backgroundMusic.openFromFile("background.ogg")) {
+        if (!backgroundMusic.openFromFile("assets/music/background.ogg")) {
             printf("❌ 加载背景音乐失败，请将 background.ogg 放在项目目录\n");
         }
         else {
-            backgroundMusic.setLoop(false);      // 循环播放
+            backgroundMusic.setLoop(true);      // 循环播放
             backgroundMusic.setVolume(30.f);     // 音量 30%
             backgroundMusic.play();
         }
 
         // 加载消除行音效
-        if (lineClearBuffer.loadFromFile("line_clear.wav")) {
+        if (lineClearBuffer.loadFromFile("assets/sounds/line_clear.wav")) {
             lineClearSound.setBuffer(lineClearBuffer);
             lineClearSound.setVolume(50.f);
         }
 
         // 加载旋转音效
-        if (rotateBuffer.loadFromFile("rotate.wav")) {
+        if (rotateBuffer.loadFromFile("assets/sounds/rotate.wav")) {
             rotateSound.setBuffer(rotateBuffer);
             rotateSound.setVolume(40.f);
         }
 
         // 加载移动音效（短促的点击声）
-        if (moveBuffer.loadFromFile("move.wav")) {
+        if (moveBuffer.loadFromFile("assets/sounds/move.wav")) {
             moveSound.setBuffer(moveBuffer);
             moveSound.setVolume(30.f);
         }
 
         // 加载快速下落音效（稍长一点的 swoosh 声）
-        if (dropBuffer.loadFromFile("drop.wav")) {
+        if (dropBuffer.loadFromFile("assets/sounds/drop.wav")) {
             dropSound.setBuffer(dropBuffer);
             dropSound.setVolume(45.f);
         }
         // 加载开始游戏音效（欢呼声或开始铃声）
-        if (gameStartBuffer.loadFromFile("game_start.wav")) {
+        if (gameStartBuffer.loadFromFile("assets/sounds/game_start.wav")) {
             gameStartSound.setBuffer(gameStartBuffer);
             gameStartSound.setVolume(50.f);
         }
 
         // 加载游戏结束音效（失败声或叹息声）
-        if (gameOverBuffer.loadFromFile("game_over.wav")) {
+        if (gameOverBuffer.loadFromFile("assets/sounds/game_over.wav")) {
             gameOverSound.setBuffer(gameOverBuffer);
             gameOverSound.setVolume(50.f);
         }
@@ -402,7 +409,10 @@ public:
         drawGameBoard(window);
         drawGrid(window);
         drawFixedBlocks(window);
-        drawCurrentBlock(window);
+        if (gameStarted) {
+            drawCurrentBlock(window);
+        }
+
 
         // 绘制UI文字
         window.draw(scoreLabel);
@@ -410,7 +420,9 @@ public:
         window.draw(highScoreLabel);    // 新增
         window.draw(highScoreValue);
         window.draw(nextText);
-
+        if (!gameStarted) {
+            window.draw(startText);
+        }
         // 绘制下一个方块
         drawNextBlock(window);
 
@@ -438,7 +450,7 @@ int main() {
 
     // 加载字体
     Font font;
-    font.loadFromFile("arial.ttf");
+    font.loadFromFile("assets/fonts/arial.ttf");
 
     // 创建UI（现在包含了所有绘制功能）
     UI ui(font);
@@ -463,7 +475,7 @@ int main() {
         handleInput(window);
 
         // 自动下落
-        if (!gameOver && !paused && timer > delay) {
+        if (gameStarted && !gameOver && !paused) {
             updateGame(time);
         }
 
@@ -485,9 +497,16 @@ void handleInput(RenderWindow& window) {
         if (e.type == Event::Closed)
             window.close();
 
+        // 按任意键开始游戏
+        if (!gameStarted && e.type == Event::KeyPressed) {
+            gameStarted = true;
+            printf("游戏开始！\n");
+            continue;   // 早期返回原则，条件满足后立即跳出，避免后续重复判断
+        }
         // R键重置（始终有效）
         if (e.type == Event::KeyPressed && e.key.code == Keyboard::R) {
             resetGame();
+            continue;
         }
 
         // P键暂停/继续游戏（在游戏未结束时有效）
@@ -499,10 +518,11 @@ void handleInput(RenderWindow& window) {
             else {
                 UI::resumeMusic();
             }
+            continue;
         }
 
         // 游戏未结束时处理其他按键
-        if (!gameOver && !paused && e.type == Event::KeyPressed) {
+        if (gameStarted && !gameOver && !paused && e.type == Event::KeyPressed) {
             Point newPos = currentPos;
 
             switch (e.key.code) {
@@ -666,6 +686,7 @@ void spawnNewBlock() {
 
     if (!isValidMove(currentShape, currentRotation, currentPos)) {
         gameOver = true;
+        gameStarted = false;  // 游戏结束后回到开始界面
         printf("Game Over\n");
         UI::stopMusic();  // 游戏结束停止音乐
         UI::playGameOverSound();    // 播放游戏结束音效
@@ -684,6 +705,7 @@ void resetGame() {
     }
 
     gameOver = false;
+    gameStarted = false;  // 重置后回到开始界面
     currentShape = rand() % 7;
     currentRotation = 0;
     currentPos = { 3, 0 };
